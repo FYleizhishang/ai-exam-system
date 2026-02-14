@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>iStudy 智能教务中台</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        /* 防止未加载完时显示乱码 */
+        [v-cloak] { display: none; }
+
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'PingFang SC', sans-serif; background: #f5f7fa; }
+        .app-container { height: 100vh; display: flex; flex-direction: column; }
+        .header { background: #fff; height: 60px; padding: 0 20px; display: flex; align-items: center; border-bottom: 1px solid #dcdfe6; flex-shrink: 0; }
+
+        .main-content { flex: 1; padding: 20px; overflow: hidden; display: flex; flex-direction: column; }
+        .el-tabs--border-card { flex: 1; display: flex; flex-direction: column; overflow: hidden; border: none; box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1); }
+        .el-tabs__header { margin-bottom: 0 !important; flex-shrink: 0; }
+        .el-tabs__content { flex: 1; overflow-y: auto; padding: 20px; background: #fff; }
+
+        .repo-container { display: flex; height: 100%; gap: 20px; }
+        .repo-sidebar { width: 220px; background: white; border-radius: 8px; border: 1px solid #ebeef5; padding: 10px; overflow-y: auto; flex-shrink: 0; }
+        .repo-main { flex: 1; background: white; border-radius: 8px; border: 1px solid #ebeef5; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
+
+        .subject-item { padding: 12px; cursor: pointer; border-radius: 4px; transition: 0.2s; color: #606266; display: flex; justify-content: space-between; align-items: center; }
+        .subject-item:hover { background: #ecf5ff; color: #409EFF; }
+        .subject-item.active { background: #409EFF; color: white; font-weight: bold; }
+        .del-subject-btn { display: none; color: #F56C6C; font-size: 12px; }
+        .subject-item:hover .del-subject-btn { display: block; }
+
+        .q-card { background: #fff; border: 1px solid #ebeef5; padding: 20px; margin-bottom: 15px; border-radius: 8px; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.3s; }
+        .q-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .q-del-btn { position: absolute; top: 10px; right: 10px; display: none; }
+        .q-card:hover .q-del-btn { display: block; }
+
+        .type-tag { font-weight: bold; margin-right: 8px; }
+
+        /* 预览列表样式 */
+        .preview-list { max-height: 500px; overflow-y: auto; padding: 10px; border: 1px solid #ebeef5; border-radius: 4px; }
+        .preview-item { padding: 10px; border-bottom: 1px dashed #eee; display: flex; justify-content: space-between; align-items: center; }
+        .preview-item:last-child { border-bottom: none; }
+
+        /* 动画日志框 */
+        .hologram-box {
+            background-color: #0d1117;
+            color: #58a6ff;
+            font-family: 'Consolas', monospace;
+            padding: 20px;
+            border-radius: 8px;
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            border: 1px solid #30363d;
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+        }
+        .hologram-box::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: #58a6ff;
+            opacity: 0.6;
+            animation: scan 2s linear infinite;
+            box-shadow: 0 0 8px #58a6ff;
+        }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+
+        .log-container { flex: 1; overflow-y: auto; margin-top: 15px; font-size: 13px; line-height: 1.8; }
+        .log-line { border-left: 2px solid #238636; padding-left: 10px; margin-bottom: 5px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        .status-header { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        .spinner { width: 16px; height: 16px; border: 2px solid #58a6ff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* 优化连选体验 */
+        .no-select { user-select: none; }
+    </style>
+</head>
+<body>
+<div id="app" v-cloak>
+    <div class="app-container">
+        <div class="header">
+            <h2 style="color: #409EFF; display: flex; align-items: center; gap: 10px; margin: 0;">
+                <el-icon><Monitor /></el-icon> iStudy 智能教务中台
+            </h2>
+            <div style="flex: 1"></div>
+            <el-button type="danger" plain size="small" @click="logout">退出</el-button>
+        </div>
+
+        <div class="main-content">
+            <el-tabs v-model="activeTab" type="border-card">
+
+                <el-tab-pane name="gen">
+                    <template #label><span style="display: flex; align-items: center; gap:5px"><el-icon><Cpu /></el-icon> AI 智能出题</span></template>
+                    <div style="max-width: 900px; margin: 0 auto;">
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px; position: sticky; top: 0; z-index: 10; background: #fff; padding-bottom: 10px;">
+                            <el-select v-model="difficulty" style="width: 120px;" placeholder="难度">
+                                <el-option label="简单" value="简单"></el-option>
+                                <el-option label="中等" value="中等"></el-option>
+                                <el-option label="困难" value="困难"></el-option>
+                            </el-select>
+                            <el-input v-model="command" placeholder="例：生成数据库卷子，看着办" size="large" @keyup.enter="generate">
+                                <template #prepend>AI 指令</template>
+                            </el-input>
+                            <el-button type="primary" size="large" @click="generate" :loading="loading">生成</el-button>
+                        </div>
+
+                        <div v-if="paper.length > 0">
+                            <div style="background: #fdf6ec; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                                <div><span style="font-weight: bold; color: #E6A23C;">AI 拟题：</span><el-input v-model="paperTitle" style="width: 300px;"></el-input></div>
+                                <el-button type="success" icon="Check" @click="publishAI">确认入库</el-button>
+                            </div>
+
+                            <div v-for="(q, i) in paper" :key="i" class="q-card">
+                                <el-button type="danger" icon="Delete" circle size="small" class="q-del-btn" @click="removeAiQuestion(i)"></el-button>
+                                <div style="margin-bottom: 10px; display: flex; align-items: center;">
+                                    <el-tag :type="getTypeTag(q.type)">{{ getTypeName(q.type) }}</el-tag>
+                                    <el-tag type="warning" effect="plain" style="margin-right: 8px;">难度: {{ q.difficulty || 3 }}星</el-tag>
+                                    <span style="font-size: 12px; color: #999;">(待配分)</span>
+                                </div>
+                                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">{{ q.title }}</div>
+                                <div style="font-size: 13px; color: #909399; background: #fafafa; padding: 10px; border-radius: 4px;">
+                                    <div style="margin-bottom: 8px; color: #67C23A;"><b>✅ 参考答案：</b>{{ q.answer }}</div>
+                                    <div style="color: #909399;"><b>📖 详细解析：</b>{{ q.analysis || '暂无解析' }}</div>
+                                </div>
+                            </div>
+                            <div style="height: 50px;"></div>
+                        </div>
+                        <el-empty v-else description="输入指令，召唤 DeepSeek 出题..." :image-size="150"></el-empty>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane name="repo">
+                    <template #label><span style="display: flex; align-items: center; gap:5px"><el-icon><Files /></el-icon> 题库与组卷</span></template>
+                    <div class="repo-container">
+                        <div class="repo-sidebar">
+                            <div style="padding: 10px; font-weight: bold; color: #303133; border-bottom: 1px solid #eee;">📂 科目列表</div>
+                            <div v-for="sub in subjects" :key="sub" class="subject-item" :class="{active: currentSubject === sub}" @click="selectSubject(sub)">
+                                <span>{{ sub }}</span>
+                                <el-icon class="del-subject-btn" @click.stop="removeSubject(sub)"><Delete /></el-icon>
+                            </div>
+                        </div>
+                        <div class="repo-main">
+                            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: white; z-index: 5; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                                <span style="font-weight: bold; font-size: 18px;">{{ currentSubject }} 题库</span>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 13px; color: #409EFF; font-weight: bold; background: #ecf5ff; padding: 5px 10px; border-radius: 4px;" v-if="selectedIds.length > 0">
+                                        已选: {{ selectionStats }}
+                                    </span>
+                                    <el-button type="danger" :disabled="selectedIds.length === 0" @click="openPreview">🛒 去组卷 ({{ selectedIds.length }})</el-button>
+                                    <el-button @click="loadQuestions" icon="Refresh" circle></el-button>
+                                </div>
+                            </div>
+                            <el-table ref="questionTable" :data="dbQuestions" border stripe style="flex: 1; overflow: hidden" height="100%" class="no-select"
+                                      @selection-change="handleSelection" @row-click="handleRowClick">
+                                <el-table-column type="selection" width="55"></el-table-column>
+                                <el-table-column prop="type" label="类型" width="80">
+                                    <template #default="scope"><el-tag size="small">{{ getTypeName(scope.row.type) }}</el-tag></template>
+                                </el-table-column>
+                                <el-table-column prop="title" label="题目" show-overflow-tooltip></el-table-column>
+                                <el-table-column prop="score" label="当前分" width="80"></el-table-column>
+                                <el-table-column label="操作" width="150" align="center">
+                                    <template #default="scope">
+                                        <el-button size="small" @click.stop="openEdit(scope.row)">编辑</el-button>
+                                        <el-button size="small" type="danger" @click.stop="deleteQ(scope.row.id)">删</el-button>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane name="papers">
+                    <template #label><span style="display: flex; align-items: center; gap:5px"><el-icon><Document /></el-icon> 试卷管理</span></template>
+                    <div style="max-width: 1000px; margin: 0 auto;">
+                        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: bold; font-size: 18px;">已发布试卷</span>
+                            <el-button @click="loadPaperList" icon="Refresh" circle></el-button>
+                        </div>
+
+                        <el-table :data="paperList" border stripe style="width: 100%">
+                            <el-table-column prop="id" label="ID" width="80" align="center"></el-table-column>
+                            <el-table-column prop="title" label="试卷标题"></el-table-column>
+                            <el-table-column prop="totalScore" label="总分" width="100" align="center"></el-table-column>
+                            <el-table-column prop="duration" label="时长" width="100" align="center">
+                                <template #default="scope">{{ scope.row.duration }} 分钟</template>
+                            </el-table-column>
+                            <el-table-column prop="createTime" label="发布时间" width="200" align="center">
+                                <template #default="scope">{{ formatDate(scope.row.createTime) }}</template>
+                            </el-table-column>
+                            <el-table-column label="操作" width="120" align="center">
+                                <template #default="scope">
+                                    <el-popconfirm title="确定要删除这张试卷吗？" @confirm="deletePaper(scope.row.id)">
+                                        <template #reference>
+                                            <el-button type="danger" size="small" icon="Delete">删除</el-button>
+                                        </template>
+                                    </el-popconfirm>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+        </div>
+
+        <el-dialog v-model="previewVisible" title="📜 试卷预览与发布" width="800px">
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                <span>试卷标题：</span>
+                <el-input v-model="finalPaperTitle" style="width: 300px;"></el-input>
+                <div style="flex:1"></div>
+                <el-button type="warning" @click="smartBalanceInPreview">⚡ 智能配平(100分)</el-button>
+            </div>
+
+            <div class="preview-list">
+                <div v-for="(q, i) in previewQuestions" :key="q.id" class="preview-item">
+                    <div style="flex: 1; margin-right: 10px;">
+                        <el-tag size="small" style="margin-right: 5px;">{{ i+1 }}</el-tag>
+                        <span style="font-weight: bold; font-size: 12px;">[{{ getTypeName(q.type) }}]</span>
+                        {{ q.title }}
+                    </div>
+                    <div style="width: 80px;">
+                        <el-input-number v-model="q.score" size="small" :min="1" style="width: 80px;"></el-input-number>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; text-align: right; border-top: 1px solid #eee; padding-top: 10px;">
+                <span style="margin-right: 20px; font-weight: bold; font-size: 16px;">
+                    总分: <span :style="{color: totalScore===100?'#67C23A':'#F56C6C'}">{{ totalScore }}</span> 分
+                </span>
+                <el-button type="warning" icon="Document" @click="exportWordFromPreview">📥 导出 Word</el-button>
+                <el-button type="primary" icon="Upload" @click="publishFinal">🚀 线上发布</el-button>
+            </div>
+        </el-dialog>
+
+        <el-dialog v-model="logVisible" title="AI 任务执行中" width="650px" :close-on-click-modal="false" :show-close="false" center style="background: transparent; box-shadow: none;">
+            <div class="hologram-box">
+                <div class="status-header">
+                    <div class="spinner"></div>
+                    <span style="font-weight: bold;">DeepSeek-V3 正在生成数据流...</span>
+                </div>
+                <div class="log-container" id="logBox">
+                    <div v-for="(log, index) in logs" :key="index" class="log-line">
+                        <span style="color: #8b949e; margin-right: 10px;">{{ new Date().toLocaleTimeString() }}</span>
+                        <span v-html="log"></span>
+                    </div>
+                </div>
+            </div>
+            <div slot="footer" style="text-align: center; margin-top: 20px;">
+                <el-button v-if="!loading" type="primary" @click="logVisible = false">完成任务，查看结果</el-button>
+            </div>
+        </el-dialog>
+
+        <el-dialog v-model="editVisible" title="修改题目" width="500px">
+            <el-form :model="editForm" label-width="60px">
+                <el-form-item label="题干"><el-input v-model="editForm.title" type="textarea" :rows="3"></el-input></el-form-item>
+                <el-form-item label="类型">
+                    <el-select v-model="editForm.type"><el-option label="单选" :value="1"></el-option><el-option label="多选" :value="2"></el-option><el-option label="判断" :value="3"></el-option><el-option label="填空" :value="4"></el-option><el-option label="简答" :value="5"></el-option></el-select>
+                </el-form-item>
+                <el-form-item label="分数"><el-input-number v-model="editForm.score"></el-input-number></el-form-item>
+                <el-form-item label="答案"><el-input v-model="editForm.answer"></el-input></el-form-item>
+                <el-form-item label="解析"><el-input v-model="editForm.analysis" type="textarea"></el-input></el-form-item>
+            </el-form>
+            <template #footer><el-button @click="editVisible = false">取消</el-button><el-button type="primary" @click="saveEdit">保存</el-button></template>
+        </el-dialog>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive, nextTick, computed, onMounted } = Vue;
+    const { ElMessage, ElMessageBox } = ElementPlus;
+
+    const app = createApp({
+        setup() {
+            const activeTab = ref('gen');
+            const command = ref('');
+            const difficulty = ref('中等');
+            const paperTitle = ref('');
+            const paper = ref([]);
+            const logVisible = ref(false);
+            const logs = ref([]);
+            const loading = ref(false);
+            const subjects = ref(['全部']);
+            const currentSubject = ref('全部');
+            const dbQuestions = ref([]);
+            const selectedIds = ref([]); const selectedRows = ref([]);
+            const editVisible = ref(false);
+            const editForm = reactive({});
+
+            // 预览相关
+            const previewVisible = ref(false);
+            const previewQuestions = ref([]);
+            const finalPaperTitle = ref('');
+            const questionTable = ref(null);
+            let lastSelectedIndex = -1;
+
+            // 🔥🔥 新增：试卷列表数据 🔥🔥
+            const paperList = ref([]);
+
+            // 统计
+            const selectionStats = computed(() => {
+                const counts = {1:0, 2:0, 3:0, 4:0, 5:0};
+                selectedRows.value.forEach(q => counts[q.type] = (counts[q.type]||0) + 1);
+                let str = [];
+                if(counts[1]) str.push(`单选${counts[1]}`);
+                if(counts[2]) str.push(`多选${counts[2]}`);
+                if(counts[3]) str.push(`判断${counts[3]}`);
+                if(counts[4]) str.push(`填空${counts[4]}`);
+                if(counts[5]) str.push(`大题${counts[5]}`);
+                return str.join(' + ');
+            });
+
+            // 总分计算
+            const totalScore = computed(() => previewQuestions.value.reduce((sum, q) => sum + (q.score || 0), 0));
+
+            const generate = () => {
+                if(!command.value) return ElMessage.warning('请输入指令');
+                loading.value = true; logVisible.value = true;
+                logs.value = ["System Init... 连接神经中枢..."];
+                paper.value = [];
+                const eventSource = new EventSource(`/api/teacher/paper/stream-gen?topic=${encodeURIComponent(command.value)}&difficulty=${encodeURIComponent(difficulty.value)}`);
+                eventSource.addEventListener('log', (e) => { logs.value.push(e.data); nextTick(() => { const box = document.getElementById('logBox'); if(box) box.scrollTop = box.scrollHeight; }); });
+                eventSource.addEventListener('complete', (e) => { const data = JSON.parse(e.data); paper.value = data.questions; paperTitle.value = data.aiTitle; logs.value.push("<span style='color:#67C23A'>✅ 任务完成！</span>"); loading.value = false; eventSource.close(); });
+                eventSource.addEventListener('error', (e) => { logs.value.push("❌ 错误: " + e.data); loading.value = false; eventSource.close(); });
+                eventSource.onerror = () => { if(loading.value) { logs.value.push("⚠️ 连接中断"); loading.value = false; eventSource.close(); } };
+            };
+
+            const publishAI = () => { axios.post('/api/teacher/paper/publish', { title: paperTitle.value, questions: paper.value }).then(() => { ElMessage.success('已入库'); loadSubjects(); activeTab.value = 'repo'; loadPaperList(); }); };
+
+            // 导出 Word (快捷方法)
+            const doExport = (title, qs) => {
+                ElMessage.info('生成文档中...');
+                axios.post('/api/export/word', { title: title, questions: qs }, { responseType: 'blob' })
+                    .then(res => {
+                        const url = window.URL.createObjectURL(new Blob([res.data]));
+                        const link = document.createElement('a'); link.href = url;
+                        link.setAttribute('download', title + '.docx');
+                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                        ElMessage.success('导出成功');
+                    }).catch(() => ElMessage.error('导出失败'));
+            }
+
+            const loadSubjects = () => { axios.get('/api/teacher/subject/list').then(r => subjects.value = ['全部', ...r.data.data]); };
+            const removeSubject = (sub) => { if(sub==='全部')return; ElMessageBox.confirm(`确认删除【${sub}】？`).then(() => { axios.post(`/api/teacher/subject/delete?subject=${encodeURIComponent(sub)}`).then(() => { ElMessage.success('已删除'); loadSubjects(); loadQuestions(); }); }); };
+            const selectSubject = (sub) => { currentSubject.value = sub; loadQuestions(); };
+            const loadQuestions = () => { axios.get(`/api/teacher/question/list?subject=${currentSubject.value}`).then(r => dbQuestions.value = r.data.data); };
+            const openEdit = (row) => { Object.assign(editForm, JSON.parse(JSON.stringify(row))); editVisible.value = true; };
+            const saveEdit = () => { axios.post('/api/teacher/question/update', editForm).then(() => { ElMessage.success('修改成功'); editVisible.value = false; loadQuestions(); }); };
+            const deleteQ = (id) => { ElMessageBox.confirm('确认删除？').then(() => { axios.post(`/api/teacher/question/delete?id=${id}`).then(() => { ElMessage.success('已删'); loadQuestions(); }); }); };
+            const removeAiQuestion = (index) => { paper.value.splice(index, 1); };
+
+            const handleSelection = (val) => { selectedRows.value = val; selectedIds.value = val.map(q => q.id); };
+
+            // Shift 连选逻辑
+            const handleRowClick = (row, column, event) => {
+                const index = dbQuestions.value.indexOf(row);
+                if (event.shiftKey && lastSelectedIndex !== -1) {
+                    const start = Math.min(lastSelectedIndex, index);
+                    const end = Math.max(lastSelectedIndex, index);
+                    const rowsToSelect = dbQuestions.value.slice(start, end + 1);
+                    rowsToSelect.forEach(r => { questionTable.value.toggleRowSelection(r, true); });
+                } else {
+                    questionTable.value.toggleRowSelection(row);
+                }
+                lastSelectedIndex = index;
+            };
+
+            const openPreview = () => {
+                previewQuestions.value = JSON.parse(JSON.stringify(selectedRows.value));
+                finalPaperTitle.value = currentSubject.value + "期末试卷";
+                previewVisible.value = true;
+            };
+
+            const smartBalanceInPreview = () => {
+                const qs = previewQuestions.value;
+                if (qs.length === 0) return;
+                const bigs = qs.filter(q => q.type === 5);
+                const smalls = qs.filter(q => q.type !== 5);
+                const totalUnits = (bigs.length * 3) + (smalls.length * 1);
+                if (totalUnits === 0) return;
+                const unitValue = 100 / totalUnits;
+                let currentTotal = 0;
+                bigs.forEach(q => { const s = Math.floor(unitValue * 3); q.score = s > 0 ? s : 1; currentTotal += q.score; });
+                smalls.forEach(q => { const s = Math.floor(unitValue * 1); q.score = s > 0 ? s : 1; currentTotal += q.score; });
+                if (currentTotal < 100) qs[qs.length - 1].score += (100 - currentTotal);
+                else if (currentTotal > 100) qs[qs.length - 1].score -= (currentTotal - 100);
+                ElMessage.success('✅ 已智能配分');
+            };
+
+            const exportWordFromPreview = () => { doExport(finalPaperTitle.value, previewQuestions.value); };
+            const publishFinal = () => {
+                axios.post('/api/teacher/paper/publish', { title: finalPaperTitle.value, questions: previewQuestions.value }).then(() => {
+                    ElMessage.success('发布成功'); previewVisible.value = false; loadSubjects(); loadPaperList();
+                });
+            };
+
+            // 🔥🔥 新增：加载试卷列表 🔥🔥
+            const loadPaperList = () => {
+                axios.get('/api/teacher/paper/list').then(res => {
+                    if (res.data.code === 200) {
+                        paperList.value = res.data.data;
+                    }
+                });
+            };
+
+            // 🔥🔥 新增：删除试卷 🔥🔥
+            const deletePaper = (id) => {
+                axios.post('/api/teacher/paper/delete?id=' + id).then(res => {
+                    if (res.data.code === 200) {
+                        ElMessage.success('删除成功');
+                        loadPaperList();
+                    }
+                });
+            };
+
+            const formatDate = (str) => {
+                if(!str) return '';
+                return str.replace('T', ' ').substring(0, 16);
+            };
+
+            const getTypeName = (t) => ({1:'单选',2:'多选',3:'判断',4:'填空',5:'简答'}[t] || '其他');
+            const getTypeTag = (t) => t===5 ? 'danger' : (t===4?'warning':'');
+            const logout = () => location.href = 'login.html';
+
+            onMounted(() => {
+                loadSubjects();
+                loadQuestions();
+                loadPaperList(); // 自动加载试卷
+            });
+
+            return { activeTab, command, difficulty, paperTitle, paper, logVisible, logs, loading, subjects, currentSubject, dbQuestions, selectedIds, editVisible, editForm, generate, publishAI, removeSubject, selectSubject, loadQuestions, openEdit, saveEdit, deleteQ, removeAiQuestion, handleSelection, publishSelection:openPreview, getTypeName, getTypeTag, logout,
+                questionTable, handleRowClick, selectionStats,
+                previewVisible, previewQuestions, finalPaperTitle, openPreview, smartBalanceInPreview, totalScore, exportWordFromPreview, publishFinal,
+                paperList, loadPaperList, deletePaper, formatDate
+            };
+        }
+    });
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) app.component(key, component);
+    app.use(ElementPlus);
+    app.mount('#app');
+</script>
+</body>
+</html>
