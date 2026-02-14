@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>教师工作台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="layout.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body style="padding-top: 80px;">
+<div class="navbar-mac">
+    <div class="fw-bold fs-5 text-primary">👨‍🏫 教师阅卷中心</div>
+    <button class="btn btn-sm btn-outline-danger" onclick="location.href='/dashboard.html'">返回主页</button>
+</div>
+
+<div class="container py-4">
+    <div id="view-list">
+        <h4 class="fw-bold mb-4">📄 待批改试卷</h4>
+        <div id="paperList" class="row g-3"></div>
+    </div>
+
+    <div id="view-grade" style="display:none">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <button class="btn btn-light" onclick="back()">← 返回</button>
+            <h4 class="fw-bold">正在批改: <span id="curStu" class="text-primary">--</span></h4>
+            <button class="btn btn-primary px-4" onclick="submitGrade()">✅ 提交成绩</button>
+        </div>
+        <div class="mac-card"><div id="gradeArea"></div></div>
+    </div>
+</div>
+
+<script>
+    let curId = null, curDetails = [];
+    function loadList() {
+        fetch('/api/exam/pending-list').then(r=>r.json()).then(d => {
+            if(d.length===0) return document.getElementById('paperList').innerHTML = `<div class="text-center text-muted py-5">暂无试卷</div>`;
+            document.getElementById('paperList').innerHTML = d.map(p => `
+                <div class="col-md-4"><div class="mac-card d-flex justify-content-between align-items-center">
+                    <div><h5 class="fw-bold mb-1">${p.studentName}</h5><small class="text-muted">AI评分: ${p.score}</small></div>
+                    <button class="btn btn-primary btn-sm rounded-pill" onclick="start(${p.id},'${p.studentName}')">批改</button>
+                </div></div>`).join('');
+        });
+    }
+    window.start = function(id, name) {
+        curId = id; document.getElementById('curStu').innerText = name;
+        document.getElementById('view-list').style.display='none'; document.getElementById('view-grade').style.display='block';
+        fetch(`/api/exam/detail?id=${id}`).then(r=>r.json()).then(d => { curDetails = JSON.parse(d.details); render(); });
+    }
+    function render() {
+        document.getElementById('gradeArea').innerHTML = curDetails.map((q, i) => `
+            <div class="border-bottom py-3">
+                <div class="d-flex justify-content-between"><h6>${i+1}. ${q.title}</h6><span class="badge bg-secondary">满分: ${q.fullScore}</span></div>
+                <div class="bg-light p-2 rounded mb-2"><small>学生:</small> <strong>${q.stuAns||'未作答'}</strong></div>
+                <div class="d-flex align-items-center gap-2">
+                    <small>老师给分:</small>
+                    <input type="number" class="form-control form-control-sm" style="width:80px" value="${q.getScore}" onchange="curDetails[${i}].getScore=parseInt(this.value)">
+                </div>
+            </div>`).join('');
+    }
+    window.submitGrade = function() {
+        fetch('/api/exam/grade', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:curId,details:curDetails})})
+            .then(()=>{ Swal.fire('成功','成绩已发布','success'); back(); loadList(); });
+    }
+    window.back = function(){document.getElementById('view-list').style.display='block'; document.getElementById('view-grade').style.display='none';}
+    loadList();
+</script>
+</body>
+</html>

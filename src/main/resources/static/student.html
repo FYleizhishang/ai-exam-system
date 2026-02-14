@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>学生考试中心</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <style>
+        body { background-color: #f5f7fa; margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif; }
+        .header { background-color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { font-size: 20px; font-weight: bold; color: #409EFF; display: flex; align-items: center; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .paper-card { margin-bottom: 20px; transition: transform 0.3s; border: none; border-radius: 8px; overflow: hidden; }
+        .paper-card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        .paper-header { font-size: 18px; font-weight: bold; color: #303133; margin-bottom: 10px; }
+        .paper-info { color: #909399; font-size: 14px; line-height: 1.8; }
+        .start-btn { width: 100%; margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="header">
+        <div class="logo">
+            <el-icon style="margin-right: 8px;"><Monitor /></el-icon>
+            在线考试系统 - 学生端
+        </div>
+        <div>
+            <el-button type="danger" plain size="small" @click="logout">退出登录</el-button>
+        </div>
+    </div>
+
+    <div class="container">
+        <el-alert title="考试须知：请在规定时间内完成答题，切屏超过3次将自动交卷。" type="warning" show-icon style="margin-bottom: 20px;"></el-alert>
+
+        <div v-loading="loading">
+            <el-row :gutter="20" v-if="papers.length > 0">
+                <el-col :span="6" v-for="item in papers" :key="item.id">
+                    <el-card class="paper-card" shadow="hover">
+                        <div class="paper-header">{{ item.title }}</div>
+                        <div class="paper-info">
+                            <div><el-icon><Timer /></el-icon> 时长：{{ item.duration }} 分钟</div>
+                            <div><el-icon><Trophy /></el-icon> 总分：{{ item.totalScore }} 分</div>
+                            <div><el-icon><Clock /></el-icon> 发布：{{ formatDate(item.createTime) }}</div>
+                        </div>
+                        <el-button type="primary" class="start-btn" @click="startExam(item.id)">
+                            开始考试
+                        </el-button>
+                    </el-card>
+                </el-col>
+            </el-row>
+
+            <el-empty v-else description="暂无发布的考试"></el-empty>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    const { ElMessage } = ElementPlus;
+
+    const app = createApp({
+        setup() {
+            const papers = ref([]);
+            const loading = ref(true);
+
+            // 加载试卷列表
+            const loadPapers = () => {
+                loading.value = true;
+                axios.get('/api/student/paper/list')
+                    .then(res => {
+                        if (res.data.code === 200) {
+                            papers.value = res.data.data;
+                        } else {
+                            ElMessage.error(res.data.msg || '获取列表失败');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        ElMessage.error('网络连接错误');
+                    })
+                    .finally(() => {
+                        loading.value = false;
+                    });
+            };
+
+            // 跳转考试
+            const startExam = (id) => {
+                window.location.href = `student_exam.html?id=${id}`;
+            };
+
+            // 退出
+            const logout = () => {
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+            };
+
+            // 时间格式化
+            const formatDate = (str) => {
+                if (!str) return '';
+                return str.replace('T', ' ').substring(0, 16);
+            };
+
+            onMounted(() => {
+                loadPapers();
+            });
+
+            return { papers, loading, startExam, logout, formatDate };
+        }
+    });
+
+    // 注册图标
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+        app.component(key, component)
+    }
+    app.use(ElementPlus);
+    app.mount('#app');
+</script>
+</body>
+</html>

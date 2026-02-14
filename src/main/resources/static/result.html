@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>考试结果</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <style>
+        body { background: #f0f2f5; padding: 40px; display: flex; justify-content: center; font-family: sans-serif; }
+        .result-card { background: white; width: 600px; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .score-box { font-size: 80px; font-weight: bold; color: #F56C6C; margin: 20px 0; }
+        .ai-box { background: #f0f9eb; padding: 20px; border-radius: 8px; text-align: left; line-height: 1.6; color: #67C23A; border: 1px solid #e1f3d8; }
+    </style>
+</head>
+<body>
+<div id="app" v-loading="loading">
+    <div class="result-card" v-if="record">
+        <h2>📑 考试成绩单</h2>
+        <div style="color: #909399;">试卷提交成功，AI 阅卷完成</div>
+
+        <div class="score-box">{{ record.totalScore }} <span style="font-size: 20px; color:#999">分</span></div>
+
+        <div class="ai-box">
+            <div style="font-weight: bold; margin-bottom: 5px;">🤖 AI 老师点评：</div>
+            {{ record.aiDiagnosis }}
+        </div>
+
+        <div style="margin-top: 40px;">
+            <el-button type="primary" @click="goHome">返回首页</el-button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    const app = createApp({
+        setup() {
+            const loading = ref(true);
+            const record = ref(null);
+            const recordId = new URLSearchParams(location.search).get('id');
+
+            onMounted(() => {
+                // 调用后端接口查询成绩
+                axios.get('/api/student/exam/result/' + recordId).then(res => {
+                    record.value = res.data;
+                    loading.value = false;
+                });
+            });
+
+            const goHome = () => location.href = 'dashboard.html';
+            return { loading, record, goHome };
+        }
+    });
+    app.use(ElementPlus);
+    app.mount('#app');
+</script>
+</body>
+</html>

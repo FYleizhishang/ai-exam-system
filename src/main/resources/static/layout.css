@@ -1,0 +1,71 @@
+:root {
+    --bg-color: #f5f5f7; /* Apple Grey */
+    --primary: #0071e3;  /* Apple Blue */
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --text-main: #1d1d1f;
+    --text-sub: #86868b;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --radius: 24px;
+}
+
+body {
+    background-color: var(--bg-color);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-main);
+    margin: 0; padding: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 毛玻璃卡片 */
+.ios-card {
+    background: var(--card-bg);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 30px;
+    border: 1px solid rgba(255,255,255,0.5);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.ios-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+
+/* 按钮 */
+.btn-ios {
+    background: var(--primary); color: white; border: none;
+    padding: 10px 24px; border-radius: 50px; font-weight: 500; font-size: 14px;
+    transition: 0.2s; cursor: pointer; text-decoration: none; display: inline-block;
+}
+.btn-ios:hover { background: #0077ed; transform: scale(1.02); color: white; }
+.btn-ios-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+.btn-ios-outline:hover { background: var(--primary); color: white; }
+.btn-danger { background: #ff3b30; color: white; border:none; padding: 5px 15px; border-radius: 20px; }
+
+/* 导航栏 */
+.ios-nav {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    height: 64px; position: fixed; top: 0; width: 100%; z-index: 1000;
+    display: flex; align-items: center; padding: 0 40px; justify-content: space-between;
+}
+.brand { font-size: 20px; font-weight: 700; color: var(--text-main); text-decoration: none; }
+
+/* 侧边栏 */
+.ios-sidebar {
+    width: 260px; height: 100vh; position: fixed; top: 0; left: 0;
+    background: white; border-right: 1px solid rgba(0,0,0,0.05);
+    padding-top: 80px; z-index: 900;
+}
+.menu-item {
+    display: block; padding: 15px 30px; color: var(--text-sub); text-decoration: none;
+    font-weight: 500; border-right: 3px solid transparent; transition: 0.2s;
+}
+.menu-item:hover, .menu-item.active { color: var(--primary); background: #f5f9ff; border-right-color: var(--primary); }
+
+.main-layout { margin-left: 260px; padding: 90px 40px 40px; }
+.container-center { max-width: 1200px; margin: 90px auto; padding: 0 20px; }
+
+/* 聊天气泡 */
+.chat-bubble { padding: 10px 16px; border-radius: 18px; max-width: 70%; margin-bottom: 10px; font-size: 14px; position: relative; }
+.chat-mine { background: var(--primary); color: white; float: right; clear: both; border-bottom-right-radius: 4px; }
+.chat-other { background: #e5e5ea; color: black; float: left; clear: both; border-bottom-left-radius: 4px; }

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>iStudy - 登录 [新版]</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <style>
+        body { margin: 0; background: #f0f2f5; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: sans-serif; }
+        .card { width: 400px; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .title { font-size: 24px; font-weight: bold; text-align: center; margin-bottom: 30px; color: #409EFF; }
+        .captcha { height: 38px; border: 1px solid #dcdfe6; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="card">
+        <div class="title">iStudy 智慧教育</div>
+        <el-form :model="form">
+            <el-form-item>
+                <el-input v-model="form.username" placeholder="账号" prefix-icon="User"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <el-input v-model="form.code" placeholder="验证码" prefix-icon="Key"></el-input>
+                    <img :src="captchaUrl" class="captcha" @click="refresh">
+                </div>
+            </el-form-item>
+            <el-button type="primary" style="width: 100%;" @click="login" :loading="loading">登 录</el-button>
+        </el-form>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    const { createApp, reactive, ref } = Vue;
+    const { ElMessage } = ElementPlus;
+    const app = createApp({
+        setup() {
+            // 默认填好 student 方便测试
+            const form = reactive({ username: 'student', password: '123456', code: '' });
+            const captchaUrl = ref('/captcha?t=' + Date.now());
+            const loading = ref(false);
+
+            const refresh = () => captchaUrl.value = '/captcha?t=' + Date.now();
+
+            const login = () => {
+                loading.value = true;
+                const params = new URLSearchParams();
+                params.append('username', form.username);
+                params.append('password', form.password);
+                params.append('code', form.code);
+
+                axios.post('/login', params).then(res => {
+                    if (res.data.code === 200) {
+                        ElMessage.success('登录成功');
+                        localStorage.setItem('role', res.data.role);
+
+                        // 🔥🔥🔥 强制跳转逻辑 🔥🔥🔥
+                        setTimeout(() => {
+                            if (res.data.role === 'teacher') {
+                                location.href = 'teacher_dashboard.html';
+                            } else {
+                                // 强制跳转到 student.html，并加个时间戳防止浏览器缓存
+                                location.href = 'student.html?t=' + new Date().getTime();
+                            }
+                        }, 500);
+
+                    } else {
+                        ElMessage.error(res.data.msg);
+                        refresh();
+                    }
+                }).catch(e => {
+                    ElMessage.error('连接服务器失败');
+                    console.error(e);
+                }).finally(() => loading.value = false);
+            };
+
+            return { form, captchaUrl, refresh, login, loading };
+        }
+    });
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+        app.component(key, component);
+    }
+    app.use(ElementPlus);
+    app.mount('#app');
+</script>
+</body>
+</html>
