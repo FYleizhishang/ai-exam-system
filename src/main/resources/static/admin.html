@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>教师后台 - 统计</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; background: #f0f2f5; }
+        .nav { background: #001529; padding: 0 20px; height: 50px; display: flex; align-items: center; }
+        .nav a { color: #ccc; text-decoration: none; margin-right: 20px; }
+        .nav a.active { color: white; font-weight: bold; }
+        .content { padding: 20px; display: flex; flex-wrap: wrap; gap: 20px; }
+        .chart { background: white; padding: 20px; border-radius: 8px; width: 48%; height: 350px; box-sizing: border-box; }
+        .table-card { background: white; padding: 20px; border-radius: 8px; width: 100%; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="nav">
+    <a href="/manage.html">题库管理</a>
+    <a href="/admin.html" class="active">成绩统计</a>
+    <a href="/login.html" style="margin-left:auto; color:#ff4d4f">退出</a>
+</div>
+
+<div class="content">
+    <div id="pie" class="chart"></div>
+    <div id="bar" class="chart"></div>
+
+    <div class="table-card">
+        <h3>学生成绩列表</h3>
+        <table>
+            <thead><tr><th>姓名</th><th>分数</th><th>时间</th></tr></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const pie = echarts.init(document.getElementById('pie'));
+    const bar = echarts.init(document.getElementById('bar'));
+
+    fetch('/scores').then(res => res.json()).then(data => {
+        let pass = 0, fail = 0;
+        const tbody = document.getElementById('tbody');
+        data.forEach(s => {
+            if(s.score >= 10) pass++; else fail++;
+            tbody.innerHTML += `<tr><td>${s.studentName}</td><td>${s.score}</td><td>${s.createTime.replace('T',' ')}</td></tr>`;
+        });
+
+        pie.setOption({
+            title: { text: '及格率统计', left: 'center' },
+            series: [{ type: 'pie', data: [{value:pass, name:'及格'}, {value:fail, name:'不及格'}] }]
+        });
+
+        bar.setOption({
+            title: { text: '成绩对比', left: 'center' },
+            xAxis: { type: 'category', data: data.map(i => i.studentName) },
+            yAxis: { type: 'value' },
+            series: [{ type: 'bar', data: data.map(i => i.score) }]
+        });
+    });
+</script>
+</body>
+</html>

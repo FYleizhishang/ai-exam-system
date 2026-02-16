@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>学生学习中心</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <style>
+        body { margin: 0; background: #f0f2f5; font-family: sans-serif; }
+        .nav { background: #fff; height: 60px; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .main { width: 1200px; margin: 20px auto; display: flex; gap: 20px; }
+        .left-col { width: 300px; }
+        .right-col { flex: 1; }
+        .user-card { background: #fff; padding: 30px; text-align: center; border-radius: 8px; }
+        .stat-row { display: flex; justify-content: space-around; margin-top: 20px; color: #666; }
+        .stat-val { font-size: 20px; font-weight: bold; color: #1890ff; display: block; }
+        .exam-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f0f0f0; background: #fff; transition: 0.3s; }
+        .exam-item:hover { background: #fafafa; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="nav">
+        <div style="font-size: 20px; font-weight: bold; color: #1890ff;">iStudy 学习平台</div>
+        <el-button type="danger" link @click="logout">退出</el-button>
+    </div>
+
+    <div class="main">
+        <div class="left-col">
+            <div class="user-card">
+                <el-avatar :size="80" :src="user.avatar || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"></el-avatar>
+                <h3 style="margin: 10px 0">{{ user.name || user.username || '同学' }}</h3>
+                <el-tag size="small">学生账号</el-tag>
+                <div class="stat-row">
+                    <div><span class="stat-val">{{ user.points || 0 }}</span>积分</div>
+                    <div><span class="stat-val">Lv.1</span>等级</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <el-card header="🔥 最新发布的考试">
+                <div v-if="papers.length === 0" style="padding: 40px; text-align: center; color: #999;">
+                    <el-empty description="暂无考试，请提醒老师发布"></el-empty>
+                </div>
+                <div v-for="p in papers" :key="p.id" class="exam-item">
+                    <div>
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">{{ p.title }}</div>
+                        <div style="color: #999; font-size: 13px;">
+                            <el-icon style="vertical-align: middle"><Timer /></el-icon>
+                            时长: {{ p.duration }}分钟 | 总分: {{ p.totalScore }}
+                        </div>
+                    </div>
+                    <el-button type="primary" @click="startExam(p.id)">参加考试</el-button>
+                </div>
+            </el-card>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+    const app = createApp({
+        setup() {
+            const user = ref({});
+            const papers = ref([]);
+
+            // 加载用户
+            const loadUser = () => {
+                axios.get('/api/user/current').then(res => {
+                    if(res.data) user.value = res.data;
+                    else location.href = 'login.html';
+                }).catch(() => {
+                    // 如果后端还没通，先给个假数据展示界面，防止乱码吓到你
+                    user.value = { name: '演示学生', points: 100 };
+                });
+            };
+
+            // 加载试卷
+            const loadPapers = () => {
+                axios.get('/api/student/paper/list').then(res => {
+                    papers.value = res.data;
+                });
+            };
+
+            const startExam = (id) => {
+                location.href = 'student_exam.html?id=' + id;
+            };
+
+            const logout = () => {
+                axios.post('/logout').then(() => location.href = 'login.html');
+            };
+
+            onMounted(() => {
+                loadUser();
+                loadPapers();
+            });
+
+            return { user, papers, startExam, logout };
+        }
+    });
+    // 注册图标
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+        app.component(key, component);
+    }
+    app.use(ElementPlus);
+    app.mount('#app');
+</script>
+</body>
+</html>

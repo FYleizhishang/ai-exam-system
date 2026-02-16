@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>在线考试 (AI 监考中)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="layout.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { padding-top: 80px; background: #f5f5f7; }
+        .q-card { background: white; border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .float-card { position: fixed; right: 20px; top: 100px; width: 280px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .grid-item { height: 35px; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 6px; }
+        .grid-item.active { background: #007aff; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container" style="max-width: 800px; margin-right: 320px;">
+    <h4 class="fw-bold mb-4">📝 期末考试 <span class="badge bg-danger fs-6 align-middle ms-2">AI 监考开启</span></h4>
+    <div id="paper">加载中...</div>
+</div>
+
+<div class="float-card">
+    <div class="h2 text-center text-danger mb-3 fw-bold" id="timer">60:00</div>
+    <div class="grid" id="card"></div>
+    <hr>
+    <button class="btn btn-primary w-100 rounded-pill" onclick="submitPaper()">提交试卷</button>
+</div>
+
+<script>
+    const user = localStorage.getItem("username");
+    let qs = [];
+
+    // 加载试卷
+    fetch('/api/exam/paper').then(r=>r.json()).then(d => {
+        qs = d;
+        render();
+        startTimer();
+    });
+
+    function render() {
+        document.getElementById('paper').innerHTML = qs.map((q, i) => `
+            <div class="q-card" id="q${i}">
+                <h5 class="mb-3"><span class="badge bg-primary me-2">${i+1}</span>${q.title} <small class="text-muted">(${q.score}分)</small></h5>
+                ${renderInput(q, i)}
+            </div>
+        `).join('');
+
+        document.getElementById('card').innerHTML = qs.map((_, i) => `<div class="grid-item" id="g${i}" onclick="location.href='#q${i}'">${i+1}</div>`).join('');
+    }
+
+    function renderInput(q, i) {
+        if(q.questionType == 3) return `<textarea class="form-control" rows="4" placeholder="AI 阅卷中，请认真作答..." oninput="mark(${i})"></textarea>`;
+        let type = q.questionType==2 ? 'checkbox' : 'radio';
+        return ['A','B','C','D'].map(o => q['option'+o] ? `
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="${type}" name="q${i}" value="${o}" onchange="mark(${i})">
+                <label class="form-check-label">${o}. ${q['option'+o]}</label>
+            </div>` : '').join('');
+    }
+
+    function mark(i) { document.getElementById(`g${i}`).classList.add('active'); }
+
+    function submitPaper() {
+        if(!confirm('确定提交吗？AI 将立即判分。')) return;
+
+        // 收集答案
+        let ans = qs.map((q, i) => {
+            if(q.questionType == 3) return document.querySelector(`#q${i} textarea`).value || "X";
+            let c = Array.from(document.querySelectorAll(`input[name="q${i}"]:checked`)).map(e=>e.value).join(',');
+            return c || "X";
+        }).join('|-|');
+
+        Swal.fire({ title: 'AI 阅卷中...', text: 'Gemini 正在分析你的主观题逻辑', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        fetch('/api/exam/submit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `u=${user}&ans=${encodeURIComponent(ans)}&reason=正常提交`
+        }).then(r=>r.text()).then(res => {
+            if(res === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: '出分了！',
+                    text: 'AI 诊断报告已生成，请去“历史成绩”查看详情',
+                    confirmButtonText: '查看报告'
+                }).then(() => location.href = 'dashboard.html');
+            } else {
+                Swal.fire('错误', '提交失败', 'error');
+            }
+        });
+    }
+
+    function startTimer() {
+        let s = 3600;
+        setInterval(() => {
+            s--;
+            let m = Math.floor(s/60).toString().padStart(2,'0');
+            let sec = (s%60).toString().padStart(2,'0');
+            document.getElementById('timer').innerText = `${m}:${sec}`;
+        }, 1000);
+    }
+</script>
+</body>
+</html>
